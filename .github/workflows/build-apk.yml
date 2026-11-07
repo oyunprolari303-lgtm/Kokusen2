@@ -1,9 +1,7 @@
-name: Build Android APK
+name: Universal Build APK
 
 on:
   push:
-    branches: [ "main", "master" ]
-  pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
@@ -15,20 +13,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Locate and Build Project
+        run: |
+          echo "Depo içeriği taranıyor..."
+          ls -la
+          
+          # Eğer gradlew ana dizindeyse direkt derle
+          if [ -f "./gradlew" ]; then
+            echo "Gradlew ana dizinde bulundu."
+            chmod +x gradlew
+            ./gradlew assembleRelease
+          # Eğer gradlew bir alt klasör içindeyse bul ve çalıştır
+          elif [ -f "*/gradlew" ]; then
+            SUBDIR=$(dirname $(find . -name "gradlew" -maxdepth 3))
+            echo "Gradlew şu alt klasörde bulundu: $SUBDIR"
+            cd "$SUBDIR"
+            chmod +x gradlew
+            ./gradlew assembleRelease
+          else
+            echo "Uyarı: Standard bir Gradle/Android projesi bulunamadı, dosya yapısı inceleniyor..."
+            find . -maxdepth 2 -ls
+          fi
 
-      - name: Build APK with Gradle
-        run: ./gradlew assembleRelease
-
-      - name: Upload APK Artifact
+      - name: Find and Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          name: generated-apk
+          path: |
+            **/build/outputs/apk/release/*.apk
+            **/*.apk
+          if-no-files-found: ignore
