@@ -1,51 +1,8 @@
-name: Universal Build APK
+# Sideload the APK onto your device
+adb install -r TechnovisAze-Learning-Bot-debug.apk
 
-on:
-  push:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+# Start the autonomous background learning service directly
+adb shell am start-foreground-service -n com.technovisaze.learningbot/.service.BackgroundLearningService
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Locate and Build Project
-        run: |
-          echo "Depo içeriği taranıyor..."
-          ls -la
-          
-          # Eğer gradlew ana dizindeyse direkt derle
-          if [ -f "./gradlew" ]; then
-            echo "Gradlew ana dizinde bulundu."
-            chmod +x gradlew
-            ./gradlew assembleRelease
-          # Eğer gradlew bir alt klasör içindeyse bul ve çalıştır
-          elif [ -f "*/gradlew" ]; then
-            SUBDIR=$(dirname $(find . -name "gradlew" -maxdepth 3))
-            echo "Gradlew şu alt klasörde bulundu: $SUBDIR"
-            cd "$SUBDIR"
-            chmod +x gradlew
-            ./gradlew assembleRelease
-          else
-            echo "Uyarı: Standard bir Gradle/Android projesi bulunamadı, dosya yapısı inceleniyor..."
-            find . -maxdepth 2 -ls
-          fi
-
-      - name: Find and Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-apk
-          path: |
-            **/build/outputs/apk/release/*.apk
-            **/*.apk
-          if-no-files-found: ignore
+# Query the local Room SQLite database live
+adb shell run-as com.technovisaze.learningbot sqlite3 databases/technovisaze_learning_bot.db "SELECT game_name, game_version, strategy_category FROM bot_memory;"
